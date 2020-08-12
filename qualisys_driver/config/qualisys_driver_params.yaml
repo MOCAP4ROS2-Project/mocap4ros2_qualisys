@@ -1,0 +1,11 @@
+qualisys_driver_node:
+  ros__parameters:
+    host_name: "mocap"
+    host_port: 22222
+    frame_count: 0
+    last_frame_number: 0
+    dropped_frame_count: 0
+    n_markers: 0
+    qos_history_policy: "keep_all"         # keep_all / keep_last
+    qos_reliability_policy: "best_effort"  # best_effort / reliable
+    qos_depth: 10                         # 10 / 100 / 1000
