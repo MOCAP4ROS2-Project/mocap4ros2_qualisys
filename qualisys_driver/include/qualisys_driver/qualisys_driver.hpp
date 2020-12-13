@@ -37,8 +37,8 @@
 #include "lifecycle_msgs/srv/change_state.hpp"
 #include "lifecycle_msgs/srv/get_state.hpp"
 
-#include "mocap4ros_msgs/msg/marker.hpp"
-#include "mocap4ros_msgs/msg/markers.hpp"
+#include "mocap_msgs/msg/marker.hpp"
+#include "mocap_msgs/msg/markers.hpp"
 
 #include "std_msgs/msg/empty.hpp"
 #include "std_msgs/msg/string.hpp"
@@ -92,8 +92,8 @@ class QualisysDriver : public rclcpp_lifecycle::LifecycleNode
     int n_markers_;
     int n_unlabeled_markers_;
     std::shared_ptr<rclcpp::Client<lifecycle_msgs::srv::ChangeState>> client_change_state_;
-    rclcpp_lifecycle::LifecyclePublisher<mocap4ros_msgs::msg::Markers>::SharedPtr marker_pub_;
-    rclcpp_lifecycle::LifecyclePublisher<mocap4ros_msgs::msg::Markers>::SharedPtr marker_with_id_pub_;
+    rclcpp_lifecycle::LifecyclePublisher<mocap_msgs::msg::Markers>::SharedPtr marker_pub_;
+    rclcpp_lifecycle::LifecyclePublisher<mocap_msgs::msg::Markers>::SharedPtr marker_with_id_pub_;
     rclcpp_lifecycle::LifecyclePublisher<std_msgs::msg::Empty>::SharedPtr update_pub_;
 };
 

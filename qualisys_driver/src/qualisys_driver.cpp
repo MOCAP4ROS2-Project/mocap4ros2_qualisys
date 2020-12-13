@@ -88,7 +88,7 @@ void QualisysDriver::process_packet(CRTPacket* const packet)
     {
       return;
     }
-    mocap4ros_msgs::msg::Markers markers_msg;
+    mocap_msgs::msg::Markers markers_msg;
     markers_msg.header.stamp = rclcpp::Clock().now();
     markers_msg.frame_number = frame_number;
 
@@ -97,7 +97,7 @@ void QualisysDriver::process_packet(CRTPacket* const packet)
       float x, y, z;
       unsigned int id;
       packet->Get3DNoLabelsMarker(i, x, y, z, id);
-      mocap4ros_msgs::msg::Marker this_marker;
+      mocap_msgs::msg::Marker this_marker;
       this_marker.index = id;
       this_marker.translation.x = x/1000;
       this_marker.translation.y = y/1000;
@@ -113,7 +113,7 @@ void QualisysDriver::process_packet(CRTPacket* const packet)
     {
       return;
     }
-    mocap4ros_msgs::msg::Markers markers_msg;
+    mocap_msgs::msg::Markers markers_msg;
     markers_msg.header.stamp = rclcpp::Clock().now();
     markers_msg.frame_number = frame_number;
 
@@ -122,7 +122,7 @@ void QualisysDriver::process_packet(CRTPacket* const packet)
       float x, y, z;
       unsigned int id;
       packet->Get3DNoLabelsMarker(i, x, y, z, id);
-      mocap4ros_msgs::msg::Marker this_marker;
+      mocap_msgs::msg::Marker this_marker;
       this_marker.translation.x = x/1000;
       this_marker.translation.y = y/1000;
       this_marker.translation.z = z/1000;
@@ -181,10 +181,10 @@ CallbackReturnT QualisysDriver::on_configure(const rclcpp_lifecycle::State & sta
   client_change_state_ = this->create_client<lifecycle_msgs::srv::ChangeState>(
     "/qualisys_driver/change_state");
 
-  marker_pub_ = create_publisher<mocap4ros_msgs::msg::Markers>(
+  marker_pub_ = create_publisher<mocap_msgs::msg::Markers>(
     "/markers", 100);
 
-  marker_with_id_pub_ = create_publisher<mocap4ros_msgs::msg::Markers>(
+  marker_with_id_pub_ = create_publisher<mocap_msgs::msg::Markers>(
     "/markers_with_id", 100);
 
   update_pub_ = create_publisher<std_msgs::msg::Empty>(
