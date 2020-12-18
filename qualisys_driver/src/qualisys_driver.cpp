@@ -15,7 +15,7 @@
 //
 // Author: Floris Erich <floris.erich@aist.go.jp>,
 //         David Vargas Frutos <david.vargas@urjc.es>
-// 
+//
 // Also includes code fragments from Kumar Robotics ROS 1 Qualisys driver
 
 #include <string>
@@ -24,7 +24,7 @@
 #include <algorithm>
 #include <utility>
 #include "qualisys_driver/qualisys_driver.hpp"
-#include <lifecycle_msgs/msg/state.hpp>
+#include "lifecycle_msgs/msg/state.hpp"
 
 using namespace std::chrono_literals;
 
@@ -34,16 +34,15 @@ void QualisysDriver::set_settings_qualisys()
 
 void QualisysDriver::loop()
 {
-  CRTPacket* prt_packet = port_protocol_.GetRTPacket();
+  CRTPacket * prt_packet = port_protocol_.GetRTPacket();
   CRTPacket::EPacketType e_type;
   port_protocol_.GetCurrentFrame(CRTProtocol::cComponent3dNoLabels);
-  if (port_protocol_.ReceiveRTPacket(e_type, true))
-  {
-    switch (e_type)
-    {
+  if (port_protocol_.ReceiveRTPacket(e_type, true)) {
+    switch (e_type) {
       case CRTPacket::PacketError:
-        RCLCPP_ERROR(get_logger(), std::string("Error when streaming frames: ") +
-            port_protocol_.GetRTPacket()->GetErrorString());
+        RCLCPP_ERROR(
+          get_logger(), std::string("Error when streaming frames: ") +
+          port_protocol_.GetRTPacket()->GetErrorString());
         break;
       case CRTPacket::PacketNoMoreData:
         RCLCPP_WARN(get_logger(), "No more data");
@@ -55,26 +54,24 @@ void QualisysDriver::loop()
         RCLCPP_ERROR(get_logger(), "Unknown CRTPacket");
     }
   }
-
-  return;
 }
 
-void QualisysDriver::process_packet(CRTPacket* const packet)
+void QualisysDriver::process_packet(CRTPacket * const packet)
 {
   unsigned int marker_count = packet->Get3DNoLabelsMarkerCount();
   int frame_number = packet->GetFrameNumber();
 
   int frame_diff = 0;
-  if (last_frame_number_ != 0)
-  {
+  if (last_frame_number_ != 0) {
     frame_diff = frame_number - last_frame_number_;
     frame_count_ += frame_diff;
-    if (frame_diff > 1)
-    {
+
+    if (frame_diff > 1) {
       dropped_frame_count_ += frame_diff;
       double dropped_frame_pct = static_cast<double>(dropped_frame_count_ / frame_count_ * 100);
 
-      RCLCPP_DEBUG(get_logger(), 
+      RCLCPP_DEBUG(
+        get_logger(),
         "%d more (total %d / %d, %f %%) frame(s) dropped. Consider adjusting rates",
         frame_diff, dropped_frame_count_, frame_count_, dropped_frame_pct
       );
@@ -82,57 +79,50 @@ void QualisysDriver::process_packet(CRTPacket* const packet)
   }
   last_frame_number_ = frame_number;
 
-  if (use_markers_with_id_)
-  {
-    if (!marker_with_id_pub_->is_activated())
-    {
+  if (use_markers_with_id_) {
+    if (!marker_with_id_pub_->is_activated()) {
       return;
     }
+
     mocap_msgs::msg::Markers markers_msg;
     markers_msg.header.stamp = rclcpp::Clock().now();
     markers_msg.frame_number = frame_number;
 
-    for (unsigned int i = 0; i < marker_count; ++i)
-    {
+    for (unsigned int i = 0; i < marker_count; ++i) {
       float x, y, z;
       unsigned int id;
       packet->Get3DNoLabelsMarker(i, x, y, z, id);
       mocap_msgs::msg::Marker this_marker;
       this_marker.index = id;
-      this_marker.translation.x = x/1000;
-      this_marker.translation.y = y/1000;
-      this_marker.translation.z = z/1000;
-      markers_msg.markers.push_back( this_marker );
+      this_marker.translation.x = x / 1000;
+      this_marker.translation.y = y / 1000;
+      this_marker.translation.z = z / 1000;
+      markers_msg.markers.push_back(this_marker);
     }
 
-    marker_with_id_pub_->publish( markers_msg );
-  }
-  else
-  {
-    if (!marker_pub_->is_activated())
-    {
+    marker_with_id_pub_->publish(markers_msg);
+  } else {
+    if (!marker_pub_->is_activated()) {
       return;
     }
+
     mocap_msgs::msg::Markers markers_msg;
     markers_msg.header.stamp = rclcpp::Clock().now();
     markers_msg.frame_number = frame_number;
 
-    for (unsigned int i = 0; i < marker_count; ++i)
-    {
+    for (unsigned int i = 0; i < marker_count; ++i) {
       float x, y, z;
       unsigned int id;
       packet->Get3DNoLabelsMarker(i, x, y, z, id);
       mocap_msgs::msg::Marker this_marker;
-      this_marker.translation.x = x/1000;
-      this_marker.translation.y = y/1000;
-      this_marker.translation.z = z/1000;
-      markers_msg.markers.push_back( this_marker );
+      this_marker.translation.x = x / 1000;
+      this_marker.translation.y = y / 1000;
+      this_marker.translation.z = z / 1000;
+      markers_msg.markers.push_back(this_marker);
     }
 
-    marker_pub_->publish( markers_msg );
+    marker_pub_->publish(markers_msg);
   }
-
-  return;
 }
 
 bool QualisysDriver::stop_qualisys()
@@ -140,19 +130,20 @@ bool QualisysDriver::stop_qualisys()
   RCLCPP_INFO(get_logger(), "Stopping the Qualisys motion capture");
   port_protocol_.StreamFramesStop();
   port_protocol_.Disconnect();
+
   return true;
 }
 
 QualisysDriver::QualisysDriver(const rclcpp::NodeOptions node_options)
-  : rclcpp_lifecycle::LifecycleNode("qualisys_driver_node", node_options)
+: rclcpp_lifecycle::LifecycleNode("qualisys_driver_node", node_options)
 {
   initParameters();
 }
-    
+
 using CallbackReturnT =
   rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
-CallbackReturnT QualisysDriver::on_configure(const rclcpp_lifecycle::State & state)
+CallbackReturnT QualisysDriver::on_configure(const rclcpp_lifecycle::State &)
 {
   RCLCPP_INFO(get_logger(), "State id [%d]", get_current_state().id());
   RCLCPP_INFO(get_logger(), "State label [%s]", get_current_state().label().c_str());
@@ -197,7 +188,7 @@ CallbackReturnT QualisysDriver::on_configure(const rclcpp_lifecycle::State & sta
   return CallbackReturnT::SUCCESS;
 }
 
-CallbackReturnT QualisysDriver::on_activate(const rclcpp_lifecycle::State & state)
+CallbackReturnT QualisysDriver::on_activate(const rclcpp_lifecycle::State &)
 {
   RCLCPP_INFO(get_logger(), "State id [%d]", get_current_state().id());
   RCLCPP_INFO(get_logger(), "State label [%s]", get_current_state().label().c_str());
@@ -206,23 +197,20 @@ CallbackReturnT QualisysDriver::on_activate(const rclcpp_lifecycle::State & stat
   marker_with_id_pub_->on_activate();
   bool success = connect_qualisys();
 
-  if (success)
-  {
+  if (success) {
     timer_ = this->create_wall_timer(100ms, std::bind(&QualisysDriver::loop, this));
 
     RCLCPP_INFO(get_logger(), "Activated!\n");
 
     return CallbackReturnT::SUCCESS;
-  }
-  else
-  {
+  } else {
     RCLCPP_INFO(get_logger(), "Unable to activate!\n");
 
     return CallbackReturnT::FAILURE;
   }
 }
 
-CallbackReturnT QualisysDriver::on_deactivate(const rclcpp_lifecycle::State & state)
+CallbackReturnT QualisysDriver::on_deactivate(const rclcpp_lifecycle::State &)
 {
   RCLCPP_INFO(get_logger(), "State id [%d]", get_current_state().id());
   RCLCPP_INFO(get_logger(), "State label [%s]", get_current_state().label().c_str());
@@ -236,7 +224,7 @@ CallbackReturnT QualisysDriver::on_deactivate(const rclcpp_lifecycle::State & st
   return CallbackReturnT::SUCCESS;
 }
 
-CallbackReturnT QualisysDriver::on_cleanup(const rclcpp_lifecycle::State & state)
+CallbackReturnT QualisysDriver::on_cleanup(const rclcpp_lifecycle::State &)
 {
   RCLCPP_INFO(get_logger(), "State id [%d]", get_current_state().id());
   RCLCPP_INFO(get_logger(), "State label [%s]", get_current_state().label().c_str());
@@ -249,7 +237,7 @@ CallbackReturnT QualisysDriver::on_cleanup(const rclcpp_lifecycle::State & state
   return CallbackReturnT::SUCCESS;
 }
 
-CallbackReturnT QualisysDriver::on_shutdown(const rclcpp_lifecycle::State & state)
+CallbackReturnT QualisysDriver::on_shutdown(const rclcpp_lifecycle::State &)
 {
   RCLCPP_INFO(get_logger(), "State id [%d]", get_current_state().id());
   RCLCPP_INFO(get_logger(), "State label [%s]", get_current_state().label().c_str());
@@ -259,7 +247,7 @@ CallbackReturnT QualisysDriver::on_shutdown(const rclcpp_lifecycle::State & stat
   return CallbackReturnT::SUCCESS;
 }
 
-CallbackReturnT QualisysDriver::on_error(const rclcpp_lifecycle::State & state)
+CallbackReturnT QualisysDriver::on_error(const rclcpp_lifecycle::State &)
 {
   RCLCPP_INFO(get_logger(), "State id [%d]", get_current_state().id());
   RCLCPP_INFO(get_logger(), "State label [%s]", get_current_state().label().c_str());
@@ -269,9 +257,13 @@ CallbackReturnT QualisysDriver::on_error(const rclcpp_lifecycle::State & state)
 
 bool QualisysDriver::connect_qualisys()
 {
-  RCLCPP_WARN(get_logger(), "Trying to connect to Qualisys host at %s:%d", host_name_.c_str(), port_);
+  RCLCPP_WARN(
+    get_logger(),
+    "Trying to connect to Qualisys host at %s:%d", host_name_.c_str(), port_);
 
-  if(!port_protocol_.Connect((char *)host_name_.data(), port_, 0, 1, 7)) {
+  if (!port_protocol_.Connect(
+      reinterpret_cast<const char *>(host_name_.data()), port_, 0, 1, 7))
+  {
     RCLCPP_FATAL(get_logger(), "Connection error");
     return false;
   }
@@ -305,22 +297,31 @@ void QualisysDriver::initParameters()
   get_parameter<int>("qos_depth", qos_depth_);
   get_parameter<bool>("use_markers_with_id", use_markers_with_id_);
 
-  RCLCPP_INFO(get_logger(),
+  RCLCPP_INFO(
+    get_logger(),
     "Param host_name: %s", host_name_.c_str());
-  RCLCPP_INFO(get_logger(),
+  RCLCPP_INFO(
+    get_logger(),
     "Param port: %d", port_);
-  RCLCPP_INFO(get_logger(),
+  RCLCPP_INFO(
+    get_logger(),
     "Param last_frame_number: %d", last_frame_number_);
-  RCLCPP_INFO(get_logger(),
+  RCLCPP_INFO(
+    get_logger(),
     "Param frame_count: %d", frame_count_);
-  RCLCPP_INFO(get_logger(),
+  RCLCPP_INFO(
+    get_logger(),
     "Param dropped_frame_count: %d", dropped_frame_count_);
-  RCLCPP_INFO(get_logger(),
+  RCLCPP_INFO(
+    get_logger(),
     "Param qos_history_policy: %s", qos_history_policy_.c_str());
-  RCLCPP_INFO(get_logger(),
+  RCLCPP_INFO(
+    get_logger(),
     "Param qos_reliability_policy: %s", qos_reliability_policy_.c_str());
-  RCLCPP_INFO(get_logger(),
+  RCLCPP_INFO(
+    get_logger(),
     "Param qos_depth: %d", qos_depth_);
-  RCLCPP_INFO(get_logger(),
+  RCLCPP_INFO(
+    get_logger(),
     "Param use_markers_with_id: %s", use_markers_with_id_ ? "true" : "false");
 }
