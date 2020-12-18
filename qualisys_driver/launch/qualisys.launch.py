@@ -15,34 +15,23 @@
 # Author: David Vargas Frutos <david.vargas@urjc.es>
 
 import os
-import sys
-
-import launch
-
-import launch_ros.actions
-import launch_ros.events
-import launch_ros.events.lifecycle
 
 from ament_index_python.packages import get_package_share_directory
 
+import launch
+
 from launch import LaunchDescription
 from launch.actions import EmitEvent
-from launch.actions import DeclareLaunchArgument
 from launch.actions import SetEnvironmentVariable
-from launch.actions import IncludeLaunchDescription
-from launch.substitutions import LaunchConfiguration
-from launch.substitutions import ThisLaunchFileDir
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch_ros.actions import Node
 from launch_ros.actions import LifecycleNode
 from launch_ros.events.lifecycle import ChangeState
-from launch_ros.event_handlers import OnStateTransition
 
 import lifecycle_msgs.msg
 
-def generate_launch_description():
 
-    params_file_path = os.path.join(get_package_share_directory('qualisys_driver'), 'config', 'qualisys_driver_params.yaml')
+def generate_launch_description():
+    params_file_path = os.path.join(get_package_share_directory(
+      'qualisys_driver'), 'config', 'qualisys_driver_params.yaml')
 
     stdout_linebuf_envvar = SetEnvironmentVariable(
         'RCUTILS_CONSOLE_STDOUT_LINE_BUFFERED', '1')
@@ -62,16 +51,16 @@ def generate_launch_description():
     # Make the driver node take the 'configure' transition
     driver_configure_trans_event = EmitEvent(
         event=ChangeState(
-            lifecycle_node_matcher = launch.events.matchers.matches_action(driver_node),
-            transition_id = lifecycle_msgs.msg.Transition.TRANSITION_CONFIGURE,
+          lifecycle_node_matcher=launch.events.matchers.matches_action(driver_node),
+          transition_id=lifecycle_msgs.msg.Transition.TRANSITION_CONFIGURE,
         )
     )
 
     # Make the driver node take the 'activate' transition
     driver_activate_trans_event = EmitEvent(
-       event = ChangeState(
-           lifecycle_node_matcher = launch.events.matchers.matches_action(driver_node),
-           transition_id = lifecycle_msgs.msg.Transition.TRANSITION_ACTIVATE,
+       event=ChangeState(
+          lifecycle_node_matcher=launch.events.matchers.matches_action(driver_node),
+          transition_id=lifecycle_msgs.msg.Transition.TRANSITION_ACTIVATE,
         )
     )
 
