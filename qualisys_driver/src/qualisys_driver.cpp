@@ -40,10 +40,12 @@ void QualisysDriver::loop()
   if (port_protocol_.ReceiveRTPacket(e_type, true)) {
     switch (e_type) {
       case CRTPacket::PacketError:
-        RCLCPP_ERROR(
-          get_logger(), std::string("Error when streaming frames: ") +
-          port_protocol_.GetRTPacket()->GetErrorString());
-        break;
+        {
+          std::string s = "Error when streaming frames: ";
+          s += port_protocol_.GetRTPacket()->GetErrorString();
+          RCLCPP_ERROR(get_logger(), s.c_str());
+          break;
+        }
       case CRTPacket::PacketNoMoreData:
         RCLCPP_WARN(get_logger(), "No more data");
         break;
@@ -93,7 +95,7 @@ void QualisysDriver::process_packet(CRTPacket * const packet)
       unsigned int id;
       packet->Get3DNoLabelsMarker(i, x, y, z, id);
       mocap_msgs::msg::Marker this_marker;
-      this_marker.index = id;
+      this_marker.marker_index = id;
       this_marker.translation.x = x / 1000;
       this_marker.translation.y = y / 1000;
       this_marker.translation.z = z / 1000;
