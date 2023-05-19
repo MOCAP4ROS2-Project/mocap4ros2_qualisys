@@ -81,50 +81,31 @@ void QualisysDriver::process_packet(CRTPacket * const packet)
   }
   last_frame_number_ = frame_number;
 
-  if (use_markers_with_id_) {
-    if (!marker_with_id_pub_->is_activated()) {
-      return;
-    }
-
-    mocap_msgs::msg::Markers markers_msg;
-    markers_msg.header.stamp = rclcpp::Clock().now();
-    markers_msg.frame_number = frame_number;
-
-    for (unsigned int i = 0; i < marker_count; ++i) {
-      float x, y, z;
-      unsigned int id;
-      packet->Get3DNoLabelsMarker(i, x, y, z, id);
-      mocap_msgs::msg::Marker this_marker;
-      this_marker.marker_index = id;
-      this_marker.translation.x = x / 1000;
-      this_marker.translation.y = y / 1000;
-      this_marker.translation.z = z / 1000;
-      markers_msg.markers.push_back(this_marker);
-    }
-
-    marker_with_id_pub_->publish(markers_msg);
-  } else {
-    if (!marker_pub_->is_activated()) {
-      return;
-    }
-
-    mocap_msgs::msg::Markers markers_msg;
-    markers_msg.header.stamp = rclcpp::Clock().now();
-    markers_msg.frame_number = frame_number;
-
-    for (unsigned int i = 0; i < marker_count; ++i) {
-      float x, y, z;
-      unsigned int id;
-      packet->Get3DNoLabelsMarker(i, x, y, z, id);
-      mocap_msgs::msg::Marker this_marker;
-      this_marker.translation.x = x / 1000;
-      this_marker.translation.y = y / 1000;
-      this_marker.translation.z = z / 1000;
-      markers_msg.markers.push_back(this_marker);
-    }
-
-    marker_pub_->publish(markers_msg);
+  if (!marker_pub_->is_activated()) {
+    return;
   }
+
+  mocap_msgs::msg::Markers markers_msg;
+  markers_msg.header.frame_id = "map";
+  markers_msg.header.stamp = rclcpp::Clock().now();
+  markers_msg.frame_number = frame_number;
+
+  for (unsigned int i = 0; i < marker_count; ++i) {
+    float x, y, z;
+    unsigned int id;
+    packet->Get3DNoLabelsMarker(i, x, y, z, id);
+    mocap_msgs::msg::Marker this_marker;
+
+    if (use_markers_with_id_) {
+      this_marker.marker_index = id;
+    }
+    this_marker.translation.x = x / 1000;
+    this_marker.translation.y = y / 1000;
+    this_marker.translation.z = z / 1000;
+    markers_msg.markers.push_back(this_marker);
+  }
+
+  marker_pub_->publish(markers_msg);
 }
 
 bool QualisysDriver::stop_qualisys()
@@ -177,8 +158,8 @@ CallbackReturnT QualisysDriver::on_configure(const rclcpp_lifecycle::State &)
   marker_pub_ = create_publisher<mocap_msgs::msg::Markers>(
     "/markers", 100);
 
-  marker_with_id_pub_ = create_publisher<mocap_msgs::msg::Markers>(
-    "/markers_with_id", 100);
+  // marker_with_id_pub_ = create_publisher<mocap_msgs::msg::Markers>(
+  //   "/markers_with_id", 100);
 
   update_pub_ = create_publisher<std_msgs::msg::Empty>(
     "/qualisys_driver/update_notify", qos);
@@ -196,7 +177,7 @@ CallbackReturnT QualisysDriver::on_activate(const rclcpp_lifecycle::State &)
   RCLCPP_INFO(get_logger(), "State label [%s]", get_current_state().label().c_str());
   update_pub_->on_activate();
   marker_pub_->on_activate();
-  marker_with_id_pub_->on_activate();
+  // marker_with_id_pub_->on_activate();
   bool success = connect_qualisys();
 
   if (success) {
@@ -219,7 +200,7 @@ CallbackReturnT QualisysDriver::on_deactivate(const rclcpp_lifecycle::State &)
   timer_->reset();
   update_pub_->on_deactivate();
   marker_pub_->on_deactivate();
-  marker_with_id_pub_->on_deactivate();
+  // marker_with_id_pub_->on_deactivate();
   stop_qualisys();
   RCLCPP_INFO(get_logger(), "Deactivated!\n");
 
@@ -232,7 +213,7 @@ CallbackReturnT QualisysDriver::on_cleanup(const rclcpp_lifecycle::State &)
   RCLCPP_INFO(get_logger(), "State label [%s]", get_current_state().label().c_str());
   update_pub_.reset();
   marker_pub_.reset();
-  marker_with_id_pub_.reset();
+  // marker_with_id_pub_.reset();
   timer_->reset();
   RCLCPP_INFO(get_logger(), "Cleaned up!\n");
 

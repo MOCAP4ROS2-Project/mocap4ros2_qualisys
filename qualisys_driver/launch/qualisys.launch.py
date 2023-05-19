@@ -41,9 +41,10 @@ def generate_launch_description():
     # print('')
 
     driver_node = LifecycleNode(
-        node_name='qualisys_driver_node',
+        name='qualisys_driver_node',
+        namespace='',
         package='qualisys_driver',
-        node_executable='qualisys_driver_main',
+        executable='qualisys_driver_main',
         output='screen',
         parameters=[params_file_path],
     )

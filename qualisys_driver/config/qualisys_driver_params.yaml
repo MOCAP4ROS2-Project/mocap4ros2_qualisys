@@ -1,6 +1,6 @@
 qualisys_driver_node:
   ros__parameters:
-    host_name: "mocap"
+    host_name: "192.168.1.64"
     host_port: 22222
     frame_count: 0
     last_frame_number: 0
