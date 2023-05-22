@@ -13,7 +13,6 @@ endif()
 
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_SOURCE_DIR}/cmake/modules")
 set(QUALISYS_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/qualisys_cpp_sdk")
-# QUALISYSSDK_LIBRARY
 
 find_package(QUALISYSSDK REQUIRED)
 find_package(ament_cmake REQUIRED)
