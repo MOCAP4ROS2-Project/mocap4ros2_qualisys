@@ -25,8 +25,50 @@
 #include <utility>
 #include "qualisys_driver/qualisys_driver.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
+#include <iostream>
+#include <cmath>
 
 using namespace std::chrono_literals;
+
+
+struct Quaternion {
+    float w, x, y, z;
+};
+
+Quaternion matrixToQuaternion(float* matrix) {
+    Quaternion quaternion;
+
+    float trace = matrix[0] + matrix[4] + matrix[8];
+    if (trace > 0) {
+        float s = 0.5f / std::sqrt(trace + 1.0f);
+        quaternion.w = 0.25f / s;
+        quaternion.x = (matrix[5] - matrix[7]) * s;
+        quaternion.y = (matrix[6] - matrix[2]) * s;
+        quaternion.z = (matrix[1] - matrix[3]) * s;
+    } else {
+        if (matrix[0] > matrix[4] && matrix[0] > matrix[8]) {
+            float s = 2.0f * std::sqrt(1.0f + matrix[0] - matrix[4] - matrix[8]);
+            quaternion.w = (matrix[5] - matrix[7]) / s;
+            quaternion.x = 0.25f * s;
+            quaternion.y = (matrix[3] + matrix[1]) / s;
+            quaternion.z = (matrix[6] + matrix[2]) / s;
+        } else if (matrix[4] > matrix[8]) {
+            float s = 2.0f * std::sqrt(1.0f + matrix[4] - matrix[0] - matrix[8]);
+            quaternion.w = (matrix[6] - matrix[2]) / s;
+            quaternion.x = (matrix[3] + matrix[1]) / s;
+            quaternion.y = 0.25f * s;
+            quaternion.z = (matrix[7] + matrix[5]) / s;
+        } else {
+            float s = 2.0f * std::sqrt(1.0f + matrix[8] - matrix[0] - matrix[4]);
+            quaternion.w = (matrix[1] - matrix[3]) / s;
+            quaternion.x = (matrix[6] + matrix[2]) / s;
+            quaternion.y = (matrix[7] + matrix[5]) / s;
+            quaternion.z = 0.25f * s;
+        }
+    }
+
+    return quaternion;
+}
 
 void QualisysDriver::set_settings_qualisys()
 {
@@ -36,7 +78,7 @@ void QualisysDriver::loop()
 {
   CRTPacket * prt_packet = port_protocol_.GetRTPacket();
   CRTPacket::EPacketType e_type;
-  port_protocol_.GetCurrentFrame(CRTProtocol::cComponent3dNoLabels);
+  port_protocol_.GetCurrentFrame(CRTProtocol::cComponent3d + CRTProtocol::cComponent6d);
   if (port_protocol_.ReceiveRTPacket(e_type, true)) {
     switch (e_type) {
       case CRTPacket::PacketError:
@@ -47,7 +89,7 @@ void QualisysDriver::loop()
           break;
         }
       case CRTPacket::PacketNoMoreData:
-        RCLCPP_WARN(get_logger(), "No more data");
+        RCLCPP_WARN(get_logger(), "No data received");
         break;
       case CRTPacket::PacketData:
         process_packet(prt_packet);
@@ -60,7 +102,8 @@ void QualisysDriver::loop()
 
 void QualisysDriver::process_packet(CRTPacket * const packet)
 {
-  unsigned int marker_count = packet->Get3DNoLabelsMarkerCount();
+  unsigned int marker_count = packet->Get3DMarkerCount();
+  unsigned int rb_count = packet->Get6DOFBodyCount();
   int frame_number = packet->GetFrameNumber();
 
   int frame_diff = 0;
@@ -81,31 +124,61 @@ void QualisysDriver::process_packet(CRTPacket * const packet)
   }
   last_frame_number_ = frame_number;
 
-  if (!marker_pub_->is_activated()) {
+  if (!mocap_markers_pub_->is_activated() && !mocap_rigid_bodies_pub_->is_activated() ) {
     return;
   }
 
-  mocap_msgs::msg::Markers markers_msg;
-  markers_msg.header.frame_id = "map";
-  markers_msg.header.stamp = rclcpp::Clock().now();
-  markers_msg.frame_number = frame_number;
+  if (mocap_markers_pub_->get_subscription_count() > 0) {
+    mocap_msgs::msg::Markers markers_msg;
+    markers_msg.header.frame_id = "map";
+    markers_msg.header.stamp = rclcpp::Clock().now();
+    markers_msg.frame_number = frame_number;
 
-  for (unsigned int i = 0; i < marker_count; ++i) {
-    float x, y, z;
-    unsigned int id;
-    packet->Get3DNoLabelsMarker(i, x, y, z, id);
-    mocap_msgs::msg::Marker this_marker;
-
-    if (use_markers_with_id_) {
-      this_marker.marker_index = id;
+    for (unsigned int i = 0; i < marker_count; ++i) {
+      float x, y, z;
+      packet->Get3DMarker((float)i, x, y, z);
+      mocap_msgs::msg::Marker this_marker;
+      this_marker.marker_index = i;
+      this_marker.translation.x = x / 1000;
+      this_marker.translation.y = y / 1000;
+      this_marker.translation.z = z / 1000;
+      if (!std::isnan(this_marker.translation.x) && !std::isnan(this_marker.translation.y) && !std::isnan(this_marker.translation.z)){
+        markers_msg.markers.push_back(this_marker);
+      }
     }
-    this_marker.translation.x = x / 1000;
-    this_marker.translation.y = y / 1000;
-    this_marker.translation.z = z / 1000;
-    markers_msg.markers.push_back(this_marker);
+
+    mocap_markers_pub_->publish(markers_msg);
   }
 
-  marker_pub_->publish(markers_msg);
+  if (mocap_rigid_bodies_pub_->get_subscription_count() > 0) {
+    mocap_msgs::msg::RigidBodies msg_rb;
+    msg_rb.header.frame_id = "map";
+    msg_rb.header.stamp = rclcpp::Clock().now();
+    msg_rb.frame_number = frame_number;
+
+    for (unsigned int i = 0; i < rb_count; i++) {
+      mocap_msgs::msg::RigidBody rb;
+
+      float x, y, z;
+      float rot_matrix[9];
+      // Get6DOFBody(unsigned int nBodyIndex, float &fX, float &fY, float &fZ, float afRotMatrix[9]);
+      packet->Get6DOFBody(i, x, y, z, rot_matrix);
+      Quaternion quaternion = matrixToQuaternion(rot_matrix);
+
+      rb.rigid_body_name = std::to_string(i);
+      rb.pose.position.x = x / 1000;
+      rb.pose.position.y = y / 1000;
+      rb.pose.position.z = z / 1000;
+      rb.pose.orientation.x = quaternion.x;
+      rb.pose.orientation.y = quaternion.y;
+      rb.pose.orientation.z = quaternion.z;
+      rb.pose.orientation.w = quaternion.w;
+
+      msg_rb.rigidbodies.push_back(rb);
+    }
+
+    mocap_rigid_bodies_pub_->publish(msg_rb);
+  }
 }
 
 bool QualisysDriver::stop_qualisys()
@@ -155,11 +228,11 @@ CallbackReturnT QualisysDriver::on_configure(const rclcpp_lifecycle::State &)
   client_change_state_ = this->create_client<lifecycle_msgs::srv::ChangeState>(
     "/qualisys_driver/change_state");
 
-  marker_pub_ = create_publisher<mocap_msgs::msg::Markers>(
+  mocap_markers_pub_ = create_publisher<mocap_msgs::msg::Markers>(
     "/markers", 100);
 
-  // marker_with_id_pub_ = create_publisher<mocap_msgs::msg::Markers>(
-  //   "/markers_with_id", 100);
+  mocap_rigid_bodies_pub_ = create_publisher<mocap_msgs::msg::RigidBodies>(
+    "rigid_bodies", rclcpp::QoS(1000));
 
   update_pub_ = create_publisher<std_msgs::msg::Empty>(
     "/qualisys_driver/update_notify", qos);
@@ -176,8 +249,8 @@ CallbackReturnT QualisysDriver::on_activate(const rclcpp_lifecycle::State &)
   RCLCPP_INFO(get_logger(), "State id [%d]", get_current_state().id());
   RCLCPP_INFO(get_logger(), "State label [%s]", get_current_state().label().c_str());
   update_pub_->on_activate();
-  marker_pub_->on_activate();
-  // marker_with_id_pub_->on_activate();
+  mocap_markers_pub_->on_activate();
+  mocap_rigid_bodies_pub_->on_activate();
   bool success = connect_qualisys();
 
   if (success) {
@@ -199,8 +272,8 @@ CallbackReturnT QualisysDriver::on_deactivate(const rclcpp_lifecycle::State &)
   RCLCPP_INFO(get_logger(), "State label [%s]", get_current_state().label().c_str());
   timer_->reset();
   update_pub_->on_deactivate();
-  marker_pub_->on_deactivate();
-  // marker_with_id_pub_->on_deactivate();
+  mocap_markers_pub_->on_deactivate();
+  mocap_rigid_bodies_pub_->on_deactivate();
   stop_qualisys();
   RCLCPP_INFO(get_logger(), "Deactivated!\n");
 
@@ -212,8 +285,8 @@ CallbackReturnT QualisysDriver::on_cleanup(const rclcpp_lifecycle::State &)
   RCLCPP_INFO(get_logger(), "State id [%d]", get_current_state().id());
   RCLCPP_INFO(get_logger(), "State label [%s]", get_current_state().label().c_str());
   update_pub_.reset();
-  marker_pub_.reset();
-  // marker_with_id_pub_.reset();
+  mocap_markers_pub_.reset();
+  mocap_rigid_bodies_pub_.reset();
   timer_->reset();
   RCLCPP_INFO(get_logger(), "Cleaned up!\n");
 
