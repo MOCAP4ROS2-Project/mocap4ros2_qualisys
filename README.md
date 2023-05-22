@@ -30,7 +30,7 @@ Setup your qualisys configuration:
 ```
 mocap_ws/src/mocap4ros2_qualisys/qualisys_driver/config/qualisys_driver_params.yaml
 ```
-Launch optitrack system:
+Launch qualisys system:
 ```
 ros2 launch qualisys_driver qualisys.launch.py
 ```
