@@ -130,7 +130,7 @@ void QualisysDriver::process_packet(CRTPacket * const packet)
   }
 
   if (mocap_markers_pub_->get_subscription_count() > 0) {
-    mocap_msgs::msg::Markers markers_msg;
+    mocap4r2_msgs::msg::Markers markers_msg;
     markers_msg.header.frame_id = "map";
     markers_msg.header.stamp = rclcpp::Clock().now();
     markers_msg.frame_number = frame_number;
@@ -138,7 +138,7 @@ void QualisysDriver::process_packet(CRTPacket * const packet)
     for (unsigned int i = 0; i < marker_count; ++i) {
       float x, y, z;
       packet->Get3DMarker((float)i, x, y, z);
-      mocap_msgs::msg::Marker this_marker;
+      mocap4r2_msgs::msg::Marker this_marker;
       this_marker.marker_index = i;
       this_marker.translation.x = x / 1000;
       this_marker.translation.y = y / 1000;
@@ -152,13 +152,13 @@ void QualisysDriver::process_packet(CRTPacket * const packet)
   }
 
   if (mocap_rigid_bodies_pub_->get_subscription_count() > 0) {
-    mocap_msgs::msg::RigidBodies msg_rb;
+    mocap4r2_msgs::msg::RigidBodies msg_rb;
     msg_rb.header.frame_id = "map";
     msg_rb.header.stamp = rclcpp::Clock().now();
     msg_rb.frame_number = frame_number;
 
     for (unsigned int i = 0; i < rb_count; i++) {
-      mocap_msgs::msg::RigidBody rb;
+      mocap4r2_msgs::msg::RigidBody rb;
 
       float x, y, z;
       float rot_matrix[9];
@@ -229,10 +229,10 @@ CallbackReturnT QualisysDriver::on_configure(const rclcpp_lifecycle::State &)
   client_change_state_ = this->create_client<lifecycle_msgs::srv::ChangeState>(
     "/qualisys_driver/change_state");
 
-  mocap_markers_pub_ = create_publisher<mocap_msgs::msg::Markers>(
+  mocap_markers_pub_ = create_publisher<mocap4r2_msgs::msg::Markers>(
     "/markers", 100);
 
-  mocap_rigid_bodies_pub_ = create_publisher<mocap_msgs::msg::RigidBodies>(
+  mocap_rigid_bodies_pub_ = create_publisher<mocap4r2_msgs::msg::RigidBodies>(
     "rigid_bodies", rclcpp::QoS(1000));
 
   update_pub_ = create_publisher<std_msgs::msg::Empty>(

@@ -39,10 +39,10 @@
 #include "lifecycle_msgs/srv/change_state.hpp"
 #include "lifecycle_msgs/srv/get_state.hpp"
 
-#include "mocap_msgs/msg/marker.hpp"
-#include "mocap_msgs/msg/markers.hpp"
-#include "mocap_msgs/msg/rigid_body.hpp"
-#include "mocap_msgs/msg/rigid_bodies.hpp"
+#include "mocap4r2_msgs/msg/marker.hpp"
+#include "mocap4r2_msgs/msg/markers.hpp"
+#include "mocap4r2_msgs/msg/rigid_body.hpp"
+#include "mocap4r2_msgs/msg/rigid_bodies.hpp"
 
 #include "std_msgs/msg/empty.hpp"
 #include "std_msgs/msg/string.hpp"
@@ -98,8 +98,8 @@ private:
   int n_markers_;
   int n_unlabeled_markers_;
   std::shared_ptr<rclcpp::Client<lifecycle_msgs::srv::ChangeState>> client_change_state_;
-  rclcpp_lifecycle::LifecyclePublisher<mocap_msgs::msg::Markers>::SharedPtr mocap_markers_pub_;
-  rclcpp_lifecycle::LifecyclePublisher<mocap_msgs::msg::RigidBodies>::SharedPtr
+  rclcpp_lifecycle::LifecyclePublisher<mocap4r2_msgs::msg::Markers>::SharedPtr mocap_markers_pub_;
+  rclcpp_lifecycle::LifecyclePublisher<mocap4r2_msgs::msg::RigidBodies>::SharedPtr
     mocap_rigid_bodies_pub_;
   rclcpp_lifecycle::LifecyclePublisher<std_msgs::msg::Empty>::SharedPtr update_pub_;
 };
