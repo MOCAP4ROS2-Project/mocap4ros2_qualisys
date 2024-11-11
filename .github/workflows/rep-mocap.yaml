@@ -1,0 +1,44 @@
+name: rep-mocap
+
+on:
+  pull_request:
+    branches:
+      - rep-mocap
+  push:
+    branches:
+      - rep-mocap
+
+jobs:
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-24.04]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup ROS 2
+        uses: ros-tooling/setup-ros@0.7.9
+        with:
+          required-ros-distributions: rolling
+      - name: Install requirements
+        run: pip3 install requests
+      - name: Build and Test
+        uses: ros-tooling/action-ros-ci@0.3.13
+        with:
+          package-name: qualisys_driver
+          target-ros2-distro: rolling
+          vcs-repo-file-url: ${GITHUB_WORKSPACE}/dependency_repos.repos
+          colcon-defaults: |
+            {
+              "test": {
+                "parallel-workers": 1
+              }
+            }
+      - name: CodeCov
+        uses: codecov/codecov-action@v1.1.0
+        with:
+          file: ros_ws/lcov/total_coverage.info
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false

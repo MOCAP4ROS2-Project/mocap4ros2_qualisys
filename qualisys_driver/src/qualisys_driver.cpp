@@ -18,57 +18,62 @@
 //         José Miguel Guerrero Hernández <josemiguel.guerrero@urjc.es>
 //
 // Also includes code fragments from Kumar Robotics ROS 1 Qualisys driver
+#include "qualisys_driver/qualisys_driver.hpp"
 
 #include <string>
 #include <vector>
 #include <memory>
 #include <algorithm>
 #include <utility>
-#include "qualisys_driver/qualisys_driver.hpp"
-#include "lifecycle_msgs/msg/state.hpp"
 #include <iostream>
 #include <cmath>
+#include <limits>
+
+#include "lifecycle_msgs/msg/state.hpp"
+
 
 using namespace std::chrono_literals;
 
 
-struct Quaternion {
-    float w, x, y, z;
+struct Quaternion
+{
+  float w, x, y, z;
 };
 
-Quaternion matrixToQuaternion(float* matrix) {
-    Quaternion quaternion;
+Quaternion matrixToQuaternion(float * matrix)
+{
+  Quaternion quaternion;
 
-    float trace = matrix[0] + matrix[4] + matrix[8];
-    if (trace > 0) {
-        float s = 0.5f / std::sqrt(trace + 1.0f);
-        quaternion.w = 0.25f / s;
-        quaternion.x = (matrix[5] - matrix[7]) * s;
-        quaternion.y = (matrix[6] - matrix[2]) * s;
-        quaternion.z = (matrix[1] - matrix[3]) * s;
+  float trace = matrix[0] + matrix[4] + matrix[8];
+  if (trace > 0) {
+    float s = 0.5f / std::sqrt(trace + 1.0f);
+    quaternion.w = 0.25f / s;
+    quaternion.x = (matrix[5] - matrix[7]) * s;
+    quaternion.y = (matrix[6] - matrix[2]) * s;
+    quaternion.z = (matrix[1] - matrix[3]) * s;
+  } else {
+    if (matrix[0] > matrix[4] && matrix[0] > matrix[8]) {
+      float s = 2.0f * std::sqrt(1.0f + matrix[0] - matrix[4] - matrix[8]);
+      quaternion.w = (matrix[5] - matrix[7]) / s;
+      quaternion.x = 0.25f * s;
+      quaternion.y = (matrix[3] + matrix[1]) / s;
+      quaternion.z = (matrix[6] + matrix[2]) / s;
+    } else if (matrix[4] > matrix[8]) {
+      float s = 2.0f * std::sqrt(1.0f + matrix[4] - matrix[0] - matrix[8]);
+      quaternion.w = (matrix[6] - matrix[2]) / s;
+      quaternion.x = (matrix[3] + matrix[1]) / s;
+      quaternion.y = 0.25f * s;
+      quaternion.z = (matrix[7] + matrix[5]) / s;
     } else {
-        if (matrix[0] > matrix[4] && matrix[0] > matrix[8]) {
-            float s = 2.0f * std::sqrt(1.0f + matrix[0] - matrix[4] - matrix[8]);
-            quaternion.w = (matrix[5] - matrix[7]) / s;
-            quaternion.x = 0.25f * s;
-            quaternion.y = (matrix[3] + matrix[1]) / s;
-            quaternion.z = (matrix[6] + matrix[2]) / s;
-        } else if (matrix[4] > matrix[8]) {
-            float s = 2.0f * std::sqrt(1.0f + matrix[4] - matrix[0] - matrix[8]);
-            quaternion.w = (matrix[6] - matrix[2]) / s;
-            quaternion.x = (matrix[3] + matrix[1]) / s;
-            quaternion.y = 0.25f * s;
-            quaternion.z = (matrix[7] + matrix[5]) / s;
-        } else {
-            float s = 2.0f * std::sqrt(1.0f + matrix[8] - matrix[0] - matrix[4]);
-            quaternion.w = (matrix[1] - matrix[3]) / s;
-            quaternion.x = (matrix[6] + matrix[2]) / s;
-            quaternion.y = (matrix[7] + matrix[5]) / s;
-            quaternion.z = 0.25f * s;
-        }
+      float s = 2.0f * std::sqrt(1.0f + matrix[8] - matrix[0] - matrix[4]);
+      quaternion.w = (matrix[1] - matrix[3]) / s;
+      quaternion.x = (matrix[6] + matrix[2]) / s;
+      quaternion.y = (matrix[7] + matrix[5]) / s;
+      quaternion.z = 0.25f * s;
     }
+  }
 
-    return quaternion;
+  return quaternion;
 }
 
 void QualisysDriver::set_settings_qualisys()
@@ -130,20 +135,23 @@ void QualisysDriver::process_packet(CRTPacket * const packet)
   }
 
   if (mocap_markers_pub_->get_subscription_count() > 0) {
-    mocap4r2_msgs::msg::Markers markers_msg;
+    mocap_interfaces::msg::MarkerArray markers_msg;
     markers_msg.header.frame_id = "map";
     markers_msg.header.stamp = rclcpp::Clock().now();
-    markers_msg.frame_number = frame_number;
+    markers_msg.seq = frame_number;
 
     for (unsigned int i = 0; i < marker_count; ++i) {
       float x, y, z;
-      packet->Get3DMarker((float)i, x, y, z);
-      mocap4r2_msgs::msg::Marker this_marker;
+      packet->Get3DMarker(static_cast<float>(i), x, y, z);
+      mocap_interfaces::msg::Marker this_marker;
       this_marker.marker_index = i;
       this_marker.translation.x = x / 1000;
       this_marker.translation.y = y / 1000;
       this_marker.translation.z = z / 1000;
-      if (!std::isnan(this_marker.translation.x) && !std::isnan(this_marker.translation.y) && !std::isnan(this_marker.translation.z)){
+      if (!std::isnan(this_marker.translation.x) &&
+        !std::isnan(this_marker.translation.y) &&
+        !std::isnan(this_marker.translation.z))
+      {
         markers_msg.markers.push_back(this_marker);
       }
     }
@@ -152,17 +160,17 @@ void QualisysDriver::process_packet(CRTPacket * const packet)
   }
 
   if (mocap_rigid_bodies_pub_->get_subscription_count() > 0) {
-    mocap4r2_msgs::msg::RigidBodies msg_rb;
+    mocap_interfaces::msg::RigidBodyArray msg_rb;
     msg_rb.header.frame_id = "map";
     msg_rb.header.stamp = rclcpp::Clock().now();
-    msg_rb.frame_number = frame_number;
+    msg_rb.seq = frame_number;
 
     for (unsigned int i = 0; i < rb_count; i++) {
-      mocap4r2_msgs::msg::RigidBody rb;
+      mocap_interfaces::msg::RigidBody rb;
 
       float x, y, z;
       float rot_matrix[9];
-      // Get6DOFBody(unsigned int nBodyIndex, float &fX, float &fY, float &fZ, float afRotMatrix[9]);
+
       packet->Get6DOFBody(i, x, y, z, rot_matrix);
       Quaternion quaternion = matrixToQuaternion(rot_matrix);
 
@@ -175,7 +183,7 @@ void QualisysDriver::process_packet(CRTPacket * const packet)
       rb.pose.orientation.z = quaternion.z;
       rb.pose.orientation.w = quaternion.w;
 
-      msg_rb.rigidbodies.push_back(rb);
+      msg_rb.rigid_bodies.push_back(rb);
     }
 
     mocap_rigid_bodies_pub_->publish(msg_rb);
@@ -229,10 +237,10 @@ CallbackReturnT QualisysDriver::on_configure(const rclcpp_lifecycle::State &)
   client_change_state_ = this->create_client<lifecycle_msgs::srv::ChangeState>(
     "/qualisys_driver/change_state");
 
-  mocap_markers_pub_ = create_publisher<mocap4r2_msgs::msg::Markers>(
+  mocap_markers_pub_ = create_publisher<mocap_interfaces::msg::MarkerArray>(
     "/markers", 100);
 
-  mocap_rigid_bodies_pub_ = create_publisher<mocap4r2_msgs::msg::RigidBodies>(
+  mocap_rigid_bodies_pub_ = create_publisher<mocap_interfaces::msg::RigidBodyArray>(
     "rigid_bodies", rclcpp::QoS(1000));
 
   update_pub_ = create_publisher<std_msgs::msg::Empty>(
