@@ -166,7 +166,9 @@ void QualisysDriver::process_packet(CRTPacket * const packet)
       packet->Get6DOFBody(i, x, y, z, rot_matrix);
       Quaternion quaternion = matrixToQuaternion(rot_matrix);
 
-      rb.rigid_body_name = std::to_string(i);
+      const char* label = port_protocol_.Get6DOFBodyName(i);
+  
+      rb.rigid_body_name = label;
       rb.pose.position.x = x / 1000;
       rb.pose.position.y = y / 1000;
       rb.pose.position.z = z / 1000;
