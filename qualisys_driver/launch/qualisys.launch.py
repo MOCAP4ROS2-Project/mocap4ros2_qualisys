@@ -46,7 +46,8 @@ def generate_launch_description():
         package='qualisys_driver',
         executable='qualisys_driver_main',
         output='screen',
-        parameters=[params_file_path],
+        arguments = ['--ros-args', '--params-file', str(params_file_path)],
+        # parameters=[params_file_path],
     )
 
     # Make the driver node take the 'configure' transition
